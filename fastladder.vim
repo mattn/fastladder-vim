@@ -2,7 +2,7 @@
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
 " Last Change: 17-Jun-2009.
-" Version: 0.2
+" Version: 0.3
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
 "
@@ -10,7 +10,7 @@
 "
 " GetLatestVimScripts: 2683 1 :AutoInstall: fastladder.vim
 
-let g:fastladder_vim_version = "0.1"
+let g:fastladder_vim_version = "0.3"
 if &compatible
   finish
 endif
@@ -422,6 +422,11 @@ function! s:ShowEntries(unread)
   let subscribe_id = s:subslist[row]['subscribe_id']
   let b:subscribe_id = subscribe_id
   let b:subscribe_row = row
+  if unread
+    echo "reading unread entries..."
+  else
+    echo "reading full entries..."
+  endif
   let s:entries = s:GetEntries(s:sid, subscribe_id, unread)
   let pins = {}
   for pin in s:pins
@@ -500,6 +505,11 @@ function! s:ShowSubsList(unread)
   silent! %d _
   redraw!
 
+  if unread
+    echo "reading unread subscribes..."
+  else
+    echo "reading full subscribes..."
+  endif
   let b:unread = unread
   let s:subslist = s:GetSubsList(s:sid, unread)
   let s:pins = s:GetPins(s:sid)
