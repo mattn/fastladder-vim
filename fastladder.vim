@@ -2,12 +2,13 @@
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
 " Last Change: 17-Jun-2009.
-" Version: 0.1
+" Version: 0.2
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
 "
 "   :FastLadder
 "
+" GetLatestVimScripts: 2683 1 :AutoInstall: fastladder.vim
 
 let g:fastladder_vim_version = "0.1"
 if &compatible
