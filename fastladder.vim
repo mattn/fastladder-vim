@@ -265,7 +265,7 @@ function! s:ShowEntry()
       execute winnr.'wincmd w'
     endif
   endif
-  setlocal buftype=nofile bufhidden=hide noswapfile nowrap ft= nowrap nonumber modifiable
+  setlocal buftype=nofile bufhidden=hide noswapfile wrap ft= nonumber modifiable
   silent! %d _
   let entry = s:entries[row]
 
@@ -286,7 +286,6 @@ function! s:ShowEntry()
   let body = s:decodeEntityReference(body)
   call setline(7, body)
   silent! %s/\r/\r/g
-  silent! normal! 7GVGgq
   setlocal nomodifiable
   syntax match SpecialKey /^\(Source\|Title\|URL\|Publish\|Author\):/he=e-1
   nnoremap <silent> <buffer> <space> <c-d>
