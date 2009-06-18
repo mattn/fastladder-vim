@@ -2,7 +2,7 @@
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
 " Last Change: 18-Jun-2009.
-" Version: 0.4
+" Version: 0.5
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
 "
@@ -10,7 +10,7 @@
 "
 " GetLatestVimScripts: 2683 1 :AutoInstall: fastladder.vim
 
-let g:fastladder_vim_version = "0.4"
+let g:fastladder_vim_version = "0.5"
 if &compatible
   finish
 endif
@@ -76,11 +76,11 @@ function! s:truncate(str, num)
       break
     endif
     let cells = s:wcwidth(ucs)
-	if width + cells > a:num
-	  break
+    if width + cells > a:num
+      break
     endif
     let width = width + cells
-	let ret = ret . char
+    let ret = ret . char
     let str = substitute(str, mx_first, '\2', '')
   endwhile
   while width + 1 <= a:num
@@ -384,9 +384,42 @@ function! s:TogglePin()
   endif
 endfunction
 
-function! s:ShowEntries(unread)
+function! s:TouchAll()
+  if confirm("Area you sure?", "&Yes\n&No") != 1
+    return
+  endif
   let bufname = s:LIST_BUFNAME
   let winnr = bufwinnr(bufname)
+  if winnr() == winnr
+    silent! bw!
+  endif
+
+  let bufname = s:SUBS_BUFNAME
+  let winnr = bufwinnr(bufname)
+  let oldwinnr = winnr()
+  if winnr > 0 && winnr != oldwinnr
+    execute winnr.'wincmd w'
+  endif
+
+  let str = getline('.')
+  let mx_row = '^\(\d\+\): .*$'
+  let row = str2nr(substitute(matchstr(str, mx_row), mx_row, '\1', '')) - 1
+
+  let subscribe_id = s:subslist[row]['subscribe_id']
+  let json = s:WebAccess(g:fastladder_server . "/api/touch_all", {}, {"ApiKey": s:sid, "subscribe_id": subscribe_id}, {"reader_sid": s:sid}, 0)
+  let json = iconv(json, "utf-8", &encoding)
+  normal r
+  if winnr > 0 && winnr != oldwinnr
+    wincmd p
+  else
+    normal r
+  endif
+  return eval(json)["isSuccess"]
+endfunction
+
+function! s:ShowEntries(unread)
+  let bufname = s:SUBS_BUFNAME
+  let winnr = bufnr(bufname)
   if winnr > 0 && winnr != winnr()
     execute winnr.'wincmd w'
   endif
@@ -421,33 +454,36 @@ function! s:ShowEntries(unread)
   redraw!
 
   let b:unread = unread
-  let subscribe_id = s:subslist[row]['subscribe_id']
-  let b:subscribe_id = subscribe_id
-  let b:subscribe_row = row
-  if unread
-    echo "reading unread entries..."
-  else
-    echo "reading full entries..."
+  if row != -1
+    let subscribe_id = s:subslist[row]['subscribe_id']
+    let b:subscribe_id = subscribe_id
+    let b:subscribe_row = row
+    if unread
+      echo "reading unread entries..."
+    else
+      echo "reading full entries..."
+    endif
+    let s:entries = s:GetEntries(s:sid, subscribe_id, unread)
+    let pins = {}
+    for pin in s:pins
+      let pins[pin['link']] = 1
+    endfor
+    let cnt = 1
+    for l:entry in s:entries
+      let source = s:truncate(s:subslist[row]['title'], 20)
+      let flag = has_key(pins, l:entry['link'])
+      let l:entry['pin'] = flag
+      call setline(cnt, printf("%03d: %s %s %s", cnt, (flag ? "*" : " "), source, l:entry['title']))
+      let cnt = cnt + 1
+    endfor
   endif
-  let s:entries = s:GetEntries(s:sid, subscribe_id, unread)
-  let pins = {}
-  for pin in s:pins
-    let pins[pin['link']] = 1
-  endfor
-  let cnt = 1
-  for l:entry in s:entries
-    let source = s:truncate(s:subslist[row]['title'], 20)
-	let flag = has_key(pins, l:entry['link'])
-	let l:entry['pin'] = flag
-    call setline(cnt, printf("%03d: %s %s %s", cnt, (flag ? "*" : " "), source, l:entry['title']))
-    let cnt = cnt + 1
-  endfor
   setlocal nomodifiable
   syntax match SpecialKey /^\d\+:/he=e-1
   exec 'nnoremap <silent> <buffer> <cr>  :call <SID>ShowEntry()<cr>'
   exec 'nnoremap <silent> <buffer> r     :call <SID>ShowEntries(-1)<cr>'
   exec 'nnoremap <silent> <buffer> <s-a> :call <SID>ShowEntries(0)<cr>'
   exec 'nnoremap <silent> <buffer> <c-a> :call <SID>ShowEntries(1)<cr>'
+  exec 'nnoremap <silent> <buffer> <c-t> :call <SID>TouchAll()<cr>'
   exec 'nnoremap <silent> <buffer> *     :call <SID>TogglePin()<cr>'
   exec 'nnoremap <silent> <buffer> ?     :call <SID>Help()<cr>'
   nnoremap <silent> <buffer> <c-n> j
@@ -526,6 +562,7 @@ function! s:ShowSubsList(unread)
   exec 'nnoremap <silent> <buffer> r     :call <SID>ShowSubsList(-1)<cr>'
   exec 'nnoremap <silent> <buffer> <s-a> :call <SID>ShowSubsList(0)<cr>'
   exec 'nnoremap <silent> <buffer> <c-a> :call <SID>ShowSubsList(1)<cr>'
+  exec 'nnoremap <silent> <buffer> <c-t> :call <SID>TouchAll()<cr>'
   exec 'nnoremap <silent> <buffer> ?     :call <SID>Help()<cr>'
   nnoremap <silent> <buffer> <c-n> j
   nnoremap <silent> <buffer> <c-p> k
