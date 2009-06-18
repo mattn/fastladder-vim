@@ -2,7 +2,7 @@
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
 " Last Change: 18-Jun-2009.
-" Version: 0.5
+" Version: 0.6
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
 "
@@ -10,7 +10,7 @@
 "
 " GetLatestVimScripts: 2683 1 :AutoInstall: fastladder.vim
 
-let g:fastladder_vim_version = "0.5"
+let g:fastladder_vim_version = "0.6"
 if &compatible
   finish
 endif
