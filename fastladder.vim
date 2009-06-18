@@ -1,7 +1,7 @@
 "=============================================================================
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-" Last Change: 17-Jun-2009.
+" Last Change: 18-Jun-2009.
 " Version: 0.3
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
@@ -314,9 +314,12 @@ function! s:ShowEntryInBrowser()
 
   if has('win32')
     silent! exec "!start rundll32 url.dll,FileProtocolHandler ".escape(b:url ,'#')
+  elseif has('mac')
+    silent! exec "!open '".escape(b:url ,'#')."'"
   else
     system("firefox '".b:url."' 2>&1 > /dev/null &")
   endif
+  redraw!
 endfunction
 
 function! s:ShowPrevEntry()
