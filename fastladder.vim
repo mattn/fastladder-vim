@@ -1,7 +1,7 @@
 "=============================================================================
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-" Last Change: 18-Jun-2009.
+" Last Change: 19-Jun-2009.
 " Version: 0.6
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
@@ -105,7 +105,7 @@ function! s:nr2enc_char(charcode)
     return nr2char(a:charcode)
   endif
   let char = s:nr2byte(a:charcode)
-  if has('iconv') && strlen(char) > 1
+  if strlen(char) > 1
     let char = strtrans(iconv(char, 'utf-8', &encoding))
   endif
   return char
@@ -153,88 +153,91 @@ function! s:decodeEntityReference(str)
   return str
 endfunction
 
+function! s:item2query(items, sep)
+  let ret = ''
+  if type(a:items) == 4
+    for key in keys(a:items)
+      if strlen(ret) | let ret .= a:sep | endif
+      let ret .= key . "=" . s:encodeURIComponent(a:items[key])
+    endfor
+  elseif type(a:items) == 3
+    for item in a:items
+      if strlen(ret) | let ret .= a:sep | endif
+      let ret .= item
+    endfor
+  else
+    let ret = a:items
+  endif
+  return ret
+endfunction
+
 function! s:WebAccess(url, getdata, postdata, cookie, returnheader)
   let url = a:url
-
-  let getdata = ''
-  for key in keys(a:getdata)
-    if len(getdata)
-      let getdata .= "&"
-    endif
-    let getdata .= key . "=" . s:encodeURIComponent(a:getdata[key])
-  endfor
-
-  let postdata = ''
-  for key in keys(a:postdata)
-    if len(postdata)
-      let postdata .= "&"
-    endif
-    let postdata .= key . "=" . s:encodeURIComponent(a:postdata[key])
-  endfor
-
-  let cookie = ''
-  for key in keys(a:cookie)
-    let cookie .= " -b " . key . "=" . s:encodeURIComponent(a:cookie[key])
-  endfor
-
-  if len(getdata)
+  let getdata = s:item2query(a:getdata, '&')
+  let postdata = s:item2query(a:postdata, '&')
+  let cookie = s:item2query(a:cookie, '; ')
+  if strlen(getdata)
     let url .= "?" . getdata
   endif
   let command = "curl -s -k"
   if a:returnheader
     let command .= " -i"
   endif
-  if len(postdata)
+  if strlen(cookie)
+    let command .= " -H \"Cookie: " . cookie . "\""
+  endif
+  let command .= " \"" . url . "\""
+  if strlen(postdata)
     let file = tempname()
     exec 'redir! > '.file 
-    silent echo postdata
+    silent echon postdata
     redir END
     let quote = &shellxquote == '"' ?  "'" : '"'
-    let res = system(command . " -d @" . quote.file.quote . cookie . " \"" . url . "\"")
+    let res = system(command . " -d @" . quote.file.quote)
     call delete(file)
   else
-    let res = system(command . " " . cookie . " \"" . url . "\"")
+    let res = system(command . " \"" . url . "\"")
   endif
   return res
 endfunction
 
-function! s:SetPin(sid, entry, pin)
+function! s:SetPin(entry, pin)
   if a:pin
-    let json = s:WebAccess(g:fastladder_server . "/api/pin/add", {}, {"ApiKey": a:sid, "link": a:entry['link'], "title": a:entry['title']}, {"reader_sid": a:sid}, 0)
+    let json = s:WebAccess(g:fastladder_server . "/api/pin/add", {}, {"ApiKey": s:apikey, "link": a:entry['link'], "title": a:entry['title']}, s:cookies, 0)
   else
-    let json = s:WebAccess(g:fastladder_server . "/api/pin/remove", {}, {"ApiKey": a:sid, "link": a:entry['link']}, {"reader_sid": a:sid}, 0)
+    let json = s:WebAccess(g:fastladder_server . "/api/pin/remove", {}, {"ApiKey": s:apikey, "link": a:entry['link']}, s:cookies, 0)
   endif
   let json = iconv(json, "utf-8", &encoding)
   return eval(json)["isSuccess"]
 endfunction
 
-function! s:GetEntries(sid, subscribe_id, unread)
+function! s:GetEntries(subscribe_id, unread)
   let l:null = 0
   let l:true = 1
   let l:false = 0
   if a:unread
-    let json = s:WebAccess(g:fastladder_server . "/api/unread", {}, {"ApiKey": a:sid, "subscribe_id": a:subscribe_id}, {"reader_sid": a:sid}, 0)
+    let json = s:WebAccess(g:fastladder_server . "/api/unread", {}, {"ApiKey": s:apikey, "subscribe_id": a:subscribe_id}, s:cookies, 0)
   else
-    let json = s:WebAccess(g:fastladder_server . "/api/all", {}, {"ApiKey": a:sid, "subscribe_id": a:subscribe_id}, {"reader_sid": a:sid}, 0)
+    let json = s:WebAccess(g:fastladder_server . "/api/all", {}, {"ApiKey": s:apikey, "subscribe_id": a:subscribe_id}, s:cookies, 0)
   endif
   let json = iconv(json, "utf-8", &encoding)
   return eval(json)["items"]
 endfunction
 
-function! s:GetPins(sid)
+function! s:GetPins()
   let l:null = 0
   let l:true = 1
   let l:false = 0
-  let json = s:WebAccess(g:fastladder_server . "/api/pin/all", {}, {"ApiKey": a:sid}, {"reader_sid": a:sid}, 0)
+  let json = s:WebAccess(g:fastladder_server . "/api/pin/all", {}, {"ApiKey": s:apikey}, s:cookies, 0)
   let json = iconv(json, "utf-8", &encoding)
   return eval(json)
 endfunction
 
-function! s:GetSubsList(sid, unread)
+function! s:GetSubsList(unread)
   let l:null = 0
   let l:true = 1
   let l:false = 0
-  let json = s:WebAccess(g:fastladder_server . "/api/subs", {}, {"ApiKey": a:sid, "unread": a:unread}, {"reader_sid": a:sid}, 0)
+  let json = s:WebAccess(g:fastladder_server . "/api/subs", {}, {"ApiKey": s:apikey, "unread": a:unread}, s:cookies, 0)
   let json = iconv(json, "utf-8", &encoding)
   return eval(json)
 endfunction
@@ -371,9 +374,10 @@ function! s:TogglePin()
   let mx_row_mark = '^\(\d\+\)\(: \)\([* ]\)\(.*\)$'
   let row = str2nr(substitute(matchstr(str, mx_row_mark), mx_row_mark, '\1', '')) - 1
   let entry = s:entries[row]
-  let pin = entry['pin']
-  if s:SetPin(s:sid, entry, (pin ? 0 : 1))
-    let str = substitute(matchstr(str, mx_row_mark), mx_row_mark, '\1\2'.(pin ? ' ' : '*').'\4', '')
+  let pin = entry['pin'] ? 0 : 1
+  if s:SetPin(entry, pin)
+    let entry['pin'] = pin
+    let str = substitute(matchstr(str, mx_row_mark), mx_row_mark, '\1\2'.(pin ? '*' : ' ').'\4', '')
     let oldmodifiable = &l:modifiable
     setlocal modifiable
     call setline(line('.'), str)
@@ -406,7 +410,7 @@ function! s:TouchAll()
   let row = str2nr(substitute(matchstr(str, mx_row), mx_row, '\1', '')) - 1
 
   let subscribe_id = s:subslist[row]['subscribe_id']
-  let json = s:WebAccess(g:fastladder_server . "/api/touch_all", {}, {"ApiKey": s:sid, "subscribe_id": subscribe_id}, {"reader_sid": s:sid}, 0)
+  let json = s:WebAccess(g:fastladder_server . "/api/touch_all", {}, {"ApiKey": s:apikey, "subscribe_id": subscribe_id}, {"reader_sid": s:apikey}, 0)
   let json = iconv(json, "utf-8", &encoding)
   normal r
   if winnr > 0 && winnr != oldwinnr
@@ -463,7 +467,8 @@ function! s:ShowEntries(unread)
     else
       echo "reading full entries..."
     endif
-    let s:entries = s:GetEntries(s:sid, subscribe_id, unread)
+    silent! unlet s:entries
+    let s:entries = s:GetEntries(subscribe_id, unread)
     let pins = {}
     for pin in s:pins
       let pins[pin['link']] = 1
@@ -513,8 +518,25 @@ function! s:ShowSubsList(unread)
     return
   end
 
-  if !exists("s:sid")
-    let s:sid = substitute(s:WebAccess(g:fastladder_server . "/login", {}, { "username": user, "password": passwd}, {}, 1), '.*reader_sid=\([^;]\+\).*', '\1', '')
+  silent! unlet s:apikey
+  if !exists("s:apikey")
+    if g:fastladder_server =~ 'reader\.livedoor\.com'
+      let res = s:WebAccess("http://member.livedoor.com/login/index", {}, { "livedoor_id": user, "password": passwd}, {}, 1)
+	  let cookies = split(res, "\n") 
+      call filter(cookies, 'v:val =~ "^Set-Cookie: "')
+      call map(cookies, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
+      let res = s:WebAccess(g:fastladder_server . "/reader/", {}, {}, join(cookies, '; '), 1)
+      let s:apikey = substitute(res, '.*reader_sid=\([^;]\+\).*', '\1', '')
+
+	  let cookies_key = split(res, "\n")
+      call filter(cookies_key, 'v:val =~ "^Set-Cookie: "')
+      call map(cookies_key, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
+	  call filter(cookies_key, 'v:val !~ "^reader_sid="')
+	  let s:cookies = add(cookies, 'reader_sid='.s:apikey)
+	else
+      let s:apikey = substitute(s:WebAccess(g:fastladder_server . "/login", {}, { "username": user, "password": passwd}, {}, 1), '.*reader_sid=\([^;]\+\).*', '\1', '')
+	  let s:cookies = {'reader_sid': s:apikey}
+	endif
   endif
 
   let unread = a:unread
@@ -549,8 +571,10 @@ function! s:ShowSubsList(unread)
     echo "reading full subscribes..."
   endif
   let b:unread = unread
-  let s:subslist = s:GetSubsList(s:sid, unread)
-  let s:pins = s:GetPins(s:sid)
+  silent! unlet s:subslist
+  let s:subslist = s:GetSubsList(unread)
+  silent! unlet s:pins
+  let s:pins = s:GetPins()
   let cnt = 1
   for l:subs in s:subslist
     call setline(cnt, printf("%03d: %s (%d)", cnt, l:subs['title'], l:subs['unread_count']))
