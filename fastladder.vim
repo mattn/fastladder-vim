@@ -1,7 +1,7 @@
 "=============================================================================
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-" Last Change: 20-Jun-2009.
+" Last Change: 21-Jun-2009.
 " Version: 0.8
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
@@ -196,7 +196,7 @@ function! s:WebAccess(url, getdata, postdata, cookie, returnheader)
     let res = system(command . " -d @" . quote.file.quote)
     call delete(file)
   else
-    let res = system(command . " \"" . url . "\"")
+    let res = system(command)
   endif
   return res
 endfunction
