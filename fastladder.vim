@@ -1,7 +1,7 @@
 "=============================================================================
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-" Last Change: 21-Jun-2009.
+" Last Change: 23-Jun-2009.
 " Version: 0.9
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
@@ -522,21 +522,21 @@ function! s:ShowSubsList(unread)
   if !exists("s:apikey")
     if g:fastladder_server =~ 'reader\.livedoor\.com'
       let res = s:WebAccess("http://member.livedoor.com/login/index", {}, { "livedoor_id": user, "password": passwd}, {}, 1)
-	  let cookies = split(res, "\n") 
+      let cookies = split(res, "\n") 
       call filter(cookies, 'v:val =~ "^Set-Cookie: "')
       call map(cookies, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
       let res = s:WebAccess(g:fastladder_server . "/reader/", {}, {}, join(cookies, '; '), 1)
       let s:apikey = substitute(res, '.*reader_sid=\([^;]\+\).*', '\1', '')
 
-	  let cookies_key = split(res, "\n")
+      let cookies_key = split(res, "\n")
       call filter(cookies_key, 'v:val =~ "^Set-Cookie: "')
       call map(cookies_key, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
-	  call filter(cookies_key, 'v:val !~ "^reader_sid="')
-	  let s:cookies = add(cookies, 'reader_sid='.s:apikey)
-	else
+      call filter(cookies_key, 'v:val !~ "^reader_sid="')
+      let s:cookies = add(cookies, 'reader_sid='.s:apikey)
+    else
       let s:apikey = substitute(s:WebAccess(g:fastladder_server . "/login", {}, { "username": user, "password": passwd}, {}, 1), '.*reader_sid=\([^;]\+\).*', '\1', '')
-	  let s:cookies = {'reader_sid': s:apikey}
-	endif
+      let s:cookies = {'reader_sid': s:apikey}
+    endif
   endif
 
   let unread = a:unread
