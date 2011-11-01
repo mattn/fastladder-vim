@@ -1,7 +1,7 @@
 "=============================================================================
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-" Last Change: 23-Jun-2009.
+" Last Change: 01-Nov-2011.
 " Version: 0.9
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
