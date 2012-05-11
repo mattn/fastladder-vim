@@ -472,7 +472,7 @@ function! s:ShowSubsList(unread)
   silent! unlet s:apikey
   if !exists("s:apikey")
     if g:fastladder_server =~ 'reader\.livedoor\.com'
-	  let res = webapi#http#post("http://member.livedoor.com/login/index", {"livedoor_id": user, "password": passwd})
+	  let res = webapi#http#post("http://member.livedoor.com/login/index", {"livedoor_id": user, "password": passwd}, {}, '', 0)
 	  let cookies = res.header
       call filter(cookies, 'v:val =~ "^Set-Cookie: "')
       call map(cookies, "matchstr(v:val, '^Set-Cookie: \\zs[^;]\\+\\ze;.*')")
