@@ -485,9 +485,7 @@ function! s:ShowSubsList(unread)
       let s:cookies = add(cookies, 'reader_sid='.s:apikey)
     else
       let res = webapi#http#post(g:fastladder_server . "/login", {"username": user, "password": passwd}, {}, '', 0)
-	  let g:hoge = deepcopy(res)
       call filter(res.header, 'v:val =~ "^Set-Cookie: "')
-	  let g:hogehogehoge = deepcopy(res.header)
       let s:apikey = substitute(res.header[0], '.*reader_sid=\([^;]\+\).*', '\1', '')
       let s:cookies = ['reader_sid='.s:apikey]
     endif
