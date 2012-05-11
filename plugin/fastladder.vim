@@ -472,21 +472,19 @@ function! s:ShowSubsList(unread)
   silent! unlet s:apikey
   if !exists("s:apikey")
     if g:fastladder_server =~ 'reader\.livedoor\.com'
-	  let res = webapi#http#post("http://member.livedoor.com/login/index", {"livedoor_id": user, "password": passwd}, {}, '', 0)
-	  let cookies = res.header
+	  let res = webapi#http#post("http://member.livedoor.com/login/index", {"livedoor_id": user, "password": passwd})
+	  let cookies = deepcopy(res.header)
       call filter(cookies, 'v:val =~ "^Set-Cookie: "')
-      call map(cookies, "matchstr(v:val, '^Set-Cookie: \\zs[^;]\\+\\ze;.*')")
-	  let res = webapi#http#post(g:fastladder_server . "/reader/", {"Cookie": join(cookies, '; ')})
-      let s:apikey = matchstr(res.content, '.*reader_sid=\([^;]\+\).*')
-
+      call map(cookies, "matchstr(v:val, '^Set-Cookie: \\zs[^;]\\+\\ze.*')")
+	  let res = webapi#http#post(g:fastladder_server . "/reader/", {}, {"Cookie": join(cookies, '; ')}, '', 0)
       call filter(res.header, 'v:val =~ "^Set-Cookie: "')
-      call map(res.header, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
-      call filter(res.header, 'v:val !~ "^reader_sid="')
+      let s:apikey = matchstr(res.header[0], '.*reader_sid=\zs[^;]\+\ze.*')
       let s:cookies = add(cookies, 'reader_sid='.s:apikey)
+	  " FIXME Currently, this don't work with livedoor reader.
     else
       let res = webapi#http#post(g:fastladder_server . "/login", {"username": user, "password": passwd}, {}, '', 0)
       call filter(res.header, 'v:val =~ "^Set-Cookie: "')
-      let s:apikey = substitute(res.header[0], '.*reader_sid=\([^;]\+\).*', '\1', '')
+      let s:apikey = matchstr(res.header[0], '.*reader_sid=\zs[^;]\+\ze.*')
       let s:cookies = ['reader_sid='.s:apikey]
     endif
   endif
