@@ -1,8 +1,8 @@
 "=============================================================================
 " File: fastladder.vim
 " Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-" Last Change: 01-Nov-2011.
-" Version: 0.9
+" Last Change: 11-May-2012.
+" Version: 1.0
 " WebPage: http://github.com/mattn/fastladder-vim/tree/master
 " Usage:
 "
@@ -17,11 +17,6 @@ endif
 
 if !exists('g:fastladder_server')
   let g:fastladder_server = 'http://fastladder.com'
-endif
-
-if !executable('curl')
-  echoerr "FastLadder: require 'curl' command"
-  finish
 endif
 
 let s:SUBS_BUFNAME = '==FastLadder Subscribes=='
@@ -171,75 +166,32 @@ function! s:item2query(items, sep)
   return ret
 endfunction
 
-function! s:WebAccess(url, getdata, postdata, cookie, returnheader)
-  let url = a:url
-  let getdata = s:item2query(a:getdata, '&')
-  let postdata = s:item2query(a:postdata, '&')
-  let cookie = s:item2query(a:cookie, '; ')
-  if strlen(getdata)
-    let url .= "?" . getdata
-  endif
-  let command = "curl -s -k"
-  if a:returnheader
-    let command .= " -i"
-  endif
-  if strlen(cookie)
-    let command .= " -H \"Cookie: " . cookie . "\""
-  endif
-  let command .= " \"" . url . "\""
-  if strlen(postdata)
-    let file = tempname()
-    exec 'redir! > '.file 
-    silent echo postdata
-    redir END
-    let quote = &shellxquote == '"' ?  "'" : '"'
-    let res = system(command . " -d @" . quote.file.quote)
-    call delete(file)
-  else
-    let res = system(command)
-  endif
-  return res
-endfunction
-
 function! s:SetPin(entry, pin)
   if a:pin
-    let json = s:WebAccess(g:fastladder_server . "/api/pin/add", {}, {"ApiKey": s:apikey, "link": a:entry['link'], "title": a:entry['title']}, s:cookies, 0)
+    let res = webapi#http#post(g:fastladder_server . "/api/pin/add", {"ApiKey": s:apikey, "link": a:entry['link'], "title": a:entry['title']}, {"Cookie" : join(s:cookies, '; ')})
   else
-    let json = s:WebAccess(g:fastladder_server . "/api/pin/remove", {}, {"ApiKey": s:apikey, "link": a:entry['link']}, s:cookies, 0)
+    let res = webapi#http#post(g:fastladder_server . "/api/pin/remove", {"ApiKey": s:apikey, "link": a:entry['link']}, {"Cookie": join(s:cookies, '; ')})
   endif
-  let json = iconv(json, "utf-8", &encoding)
-  return eval(json)["isSuccess"]
+  return webapi#json#decode(res.content)['isSuccess']
 endfunction
 
 function! s:GetEntries(subscribe_id, unread)
-  let l:null = 0
-  let l:true = 1
-  let l:false = 0
   if a:unread
-    let json = s:WebAccess(g:fastladder_server . "/api/unread", {}, {"ApiKey": s:apikey, "subscribe_id": a:subscribe_id}, s:cookies, 0)
+    let res = webapi#http#post(g:fastladder_server . "/api/unread", {"ApiKey": s:apikey, "subscribe_id": a:subscribe_id}, {"Cookie": join(s:cookies, '; ')})
   else
-    let json = s:WebAccess(g:fastladder_server . "/api/all", {}, {"ApiKey": s:apikey, "subscribe_id": a:subscribe_id}, s:cookies, 0)
+    let res = webapi#http#post(g:fastladder_server . "/api/all", {"ApiKey": s:apikey, "subscribe_id": a:subscribe_id}, {"Cookie": join(s:cookies, '; ')})
   endif
-  let json = iconv(json, "utf-8", &encoding)
-  return eval(json)["items"]
+  return webapi#json#decode(res.content)['items']
 endfunction
 
 function! s:GetPins()
-  let l:null = 0
-  let l:true = 1
-  let l:false = 0
-  let json = s:WebAccess(g:fastladder_server . "/api/pin/all", {}, {"ApiKey": s:apikey}, s:cookies, 0)
-  let json = iconv(json, "utf-8", &encoding)
-  return eval(json)
+  let res = webapi#http#post(g:fastladder_server . "/api/pin/all", {"ApiKey": s:apikey}, {"Cookie": join(s:cookies, '; ')})
+  return webapi#json#decode(res.content)
 endfunction
 
 function! s:GetSubsList(unread)
-  let l:null = 0
-  let l:true = 1
-  let l:false = 0
-  let json = s:WebAccess(g:fastladder_server . "/api/subs", {}, {"ApiKey": s:apikey, "unread": a:unread}, s:cookies, 0)
-  let json = iconv(json, "utf-8", &encoding)
-  return eval(json)
+  let res = webapi#http#post(g:fastladder_server . "/api/subs", {"ApiKey": s:apikey, "unread": a:unread}, {"Cookie": join(s:cookies, '; ')})
+  return webapi#json#decode(res.content)
 endfunction
 
 function! s:ShowEntry()
@@ -410,15 +362,14 @@ function! s:TouchAll()
   let row = str2nr(substitute(matchstr(str, mx_row), mx_row, '\1', '')) - 1
 
   let subscribe_id = s:subslist[row]['subscribe_id']
-  let json = s:WebAccess(g:fastladder_server . "/api/touch_all", {}, {"ApiKey": s:apikey, "subscribe_id": subscribe_id}, {"reader_sid": s:apikey}, 0)
-  let json = iconv(json, "utf-8", &encoding)
+  let res = webapi#http#post(g:fastladder_server . "/api/touch_all", {"ApiKey": s:apikey, "subscribe_id": subscribe_id}, {"Cookie": "reader_sid=".s:apikey})
   normal r
   if winnr > 0 && winnr != oldwinnr
     wincmd p
   else
     normal r
   endif
-  return eval(json)["isSuccess"]
+  return webapi#json#decode(res.content)["isSuccess"]
 endfunction
 
 function! s:ShowEntries(unread)
@@ -521,21 +472,24 @@ function! s:ShowSubsList(unread)
   silent! unlet s:apikey
   if !exists("s:apikey")
     if g:fastladder_server =~ 'reader\.livedoor\.com'
-      let res = s:WebAccess("http://member.livedoor.com/login/index", {}, { "livedoor_id": user, "password": passwd}, {}, 1)
-      let cookies = split(res, "\n") 
+	  let res = webapi#http#post("http://member.livedoor.com/login/index", {"livedoor_id": user, "password": passwd})
+	  let cookies = res.header
       call filter(cookies, 'v:val =~ "^Set-Cookie: "')
-      call map(cookies, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
-      let res = s:WebAccess(g:fastladder_server . "/reader/", {}, {}, join(cookies, '; '), 1)
-      let s:apikey = substitute(res, '.*reader_sid=\([^;]\+\).*', '\1', '')
+      call map(cookies, "matchstr(v:val, '^Set-Cookie: \\zs[^;]\\+\\ze;.*')")
+	  let res = webapi#http#post(g:fastladder_server . "/reader/", {"Cookie": join(cookies, '; ')})
+      let s:apikey = matchstr(res.content, '.*reader_sid=\([^;]\+\).*')
 
-      let cookies_key = split(res, "\n")
-      call filter(cookies_key, 'v:val =~ "^Set-Cookie: "')
-      call map(cookies_key, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
-      call filter(cookies_key, 'v:val !~ "^reader_sid="')
+      call filter(res.header, 'v:val =~ "^Set-Cookie: "')
+      call map(res.header, "substitute(v:val, '^Set-Cookie: \\([^;]\\+\\);.*', '\\1', '')")
+      call filter(res.header, 'v:val !~ "^reader_sid="')
       let s:cookies = add(cookies, 'reader_sid='.s:apikey)
     else
-      let s:apikey = substitute(s:WebAccess(g:fastladder_server . "/login", {}, { "username": user, "password": passwd}, {}, 1), '.*reader_sid=\([^;]\+\).*', '\1', '')
-      let s:cookies = {'reader_sid': s:apikey}
+      let res = webapi#http#post(g:fastladder_server . "/login", {"username": user, "password": passwd}, {}, '', 0)
+	  let g:hoge = deepcopy(res)
+      call filter(res.header, 'v:val =~ "^Set-Cookie: "')
+	  let g:hogehogehoge = deepcopy(res.header)
+      let s:apikey = substitute(res.header[0], '.*reader_sid=\([^;]\+\).*', '\1', '')
+      let s:cookies = ['reader_sid='.s:apikey]
     endif
   endif
 
